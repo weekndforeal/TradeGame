@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大明海商 · 白模Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Courier New", Courier, monospace;
+    background: #e8e6e1;
+    color: #2c2c2c;
+    padding: 16px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 20px; margin-bottom: 10px; border-bottom: 2px solid #5d4037; padding-bottom: 6px; color: #5d4037; }
+  .header {
+    display: flex; gap: 16px; margin-bottom: 14px; font-size: 14px; flex-wrap: wrap;
+  }
+  .header span { background: #fff; border: 2px solid #5d4037; padding: 4px 12px; color: #5d4037; }
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    gap: 14px;
+    max-width: 1200px;
+  }
+  .panel {
+    background: #fff;
+    border: 2px solid #5d4037;
+    padding: 12px;
+  }
+  .panel h2 { font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; color: #5d4037; border-bottom: 1px solid #d7ccc8; padding-bottom: 4px; }
+
+  /* 情报面板 */
+  .intel-list { display: flex; flex-direction: column; gap: 8px; }
+  .intel-card {
+    border: 2px solid #8d6e63;
+    padding: 8px;
+    font-size: 12px;
+    background: #fafafa;
+  }
+  .intel-card.reliable { border-color: #27ae60; background: #e8f8f5; }
+  .intel-card.normal { border-color: #f39c12; background: #fef9e7; }
+  .intel-card.rumor { border-color: #e74c3c; background: #fdedec; }
+  .intel-card.expired { opacity: 0.5; border-color: #95a5a6; background: #ecf0f1; text-decoration: line-through; }
+  .intel-card.held { border-color: #9b59b6; background: #f5eef8; }
+  .intel-card.triggered { border-color: #27ae60; background: #e8f8f5; }
+  .intel-card.failed { border-color: #95a5a6; background: #ecf0f1; opacity: 0.7; }
+  .intel-tag {
+    display: inline-block; font-size: 10px; padding: 1px 5px;
+    margin-bottom: 4px; color: #fff; background: #8d6e63; border-radius: 2px;
+  }
+  .intel-card.reliable .intel-tag { background: #27ae60; }
+  .intel-card.normal .intel-tag { background: #f39c12; }
+  .intel-card.rumor .intel-tag { background: #e74c3c; }
+  .intel-card.expired .intel-tag { background: #95a5a6; }
+  .intel-card.held .intel-tag { background: #9b59b6; }
+  .intel-card.triggered .intel-tag { background: #27ae60; }
+  .intel-card.failed .intel-tag { background: #95a5a6; }
+
+  /* 市场 */
+  .market-list { display: flex; flex-direction: column; gap: 8px; }
+  .cargo-btn {
+    width: 100%; text-align: left; padding: 8px; border: 2px solid #5d4037;
+    background: #fff; cursor: pointer; font-family: inherit; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    transition: all 0.15s;
+  }
+  .cargo-btn:hover { background: #f5f5f5; }
+  .cargo-btn.selected { background: #5d4037; color: #fff; border-color: #3e2723; }
+  .cargo-btn.selected .tag { border-color: #fff; color: #fff; }
+  .cargo-btn .tag { font-size: 10px; padding: 1px 4px; margin-left: 4px; border: 1px solid currentColor; border-radius: 2px; }
+  .cargo-symbol {
+    display: inline-block; width: 14px; height: 14px; margin-right: 6px;
+    vertical-align: middle; border: 1px solid currentColor;
+  }
+
+  /* 船舱 */
+  .hold-container { text-align: center; }
+  .hold-hull {
+    display: inline-block;
+    position: relative;
+    padding: 0 8px 8px 8px;
+    background: #5d4037;
+    border-radius: 0 0 20px 20px;
+    border: 3px solid #3e2723;
+    border-top: none;
+  }
+  .hold-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(4, 52px);
+    grid-template-rows: repeat(6, 52px);
+    gap: 2px;
+    background: #3e2723;
+    border: 2px solid #3e2723;
+    border-top: 2px dashed #8d6e63;
+  }
+  .cell {
+    background: #fff8e1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: bold; cursor: pointer;
+    position: relative; user-select: none;
+    transition: background 0.2s;
+  }
+  .cell:hover { background: #ffecb3; }
+  .cell.deck { background: #fff; border-top: 1px dashed #bcaaa4; }
+  .cell.bottom-deck { background: #d7ccc8; }
+  .cell.ship-edge-left { border-left: 3px solid #5d4037; }
+  .cell.ship-edge-right { border-right: 3px solid #5d4037; }
+  .cell.ship-edge { border-left: 3px solid #5d4037; border-right: 3px solid #5d4037; }
+
+  .cell.cargo-c { background: #e74c3c !important; color: #fff; }
+  .cell.cargo-s { background: #3498db !important; color: #fff; }
+  .cell.cargo-t { background: #ecf0f1 !important; color: #222; border: 1px solid #bdc3c7; }
+
+  .cell.flooded {
+    background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 6px,
+      rgba(52, 152, 219, 0.35) 6px, rgba(52, 152, 219, 0.35) 12px
+    ) !important;
+    animation: water-pulse 2s infinite;
+  }
+  @keyframes water-pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .cell.turbulence {
+    border: 2px solid #f1c40f !important;
+    animation: shake 0.5s infinite;
+  }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-1px)} 75%{transform:translateX(1px)} }
+
+  .cell.damaged::after {
+    content: "✕"; position: absolute; top: 2px; right: 3px;
+    color: #c0392b; font-size: 14px; font-weight: 900; text-shadow: 0 0 2px #fff;
+  }
+  .cell.cargo-c.damaged { background: #a93226 !important; }
+  .cell.cargo-s.damaged { background: #2471a3 !important; }
+  .cell.cargo-t.damaged { background: #bdc3c7 !important; }
+
+  .axis-x { display: grid; grid-template-columns: repeat(4, 52px); gap: 2px; margin-left: 56px; text-align: center; font-size: 10px; color: #5d4037; }
+  .axis-y-wrap { display: flex; align-items: flex-start; justify-content: center; }
+  .axis-y { display: grid; grid-template-rows: repeat(6, 52px); gap: 2px; width: 24px; text-align: right; padding-right: 4px; }
+  .axis-y span { display: flex; align-items: center; justify-content: flex-end; height: 52px; font-size: 10px; color: #5d4037; }
+  .deck-label { font-size: 10px; color: #8d6e63; margin-bottom: 2px; letter-spacing: 2px; }
+
+  /* 日志 */
+  .log {
+    height: 280px; overflow-y: auto; border: 2px solid #5d4037;
+    padding: 8px; font-size: 12px; background: #fafafa;
+  }
+  .log p { margin-bottom: 6px; line-height: 1.5; }
+  .log .event { color: #c0392b; font-weight: bold; }
+  .log .gain { color: #27ae60; font-weight: bold; }
+  .log .loss { color: #e74c3c; }
+  .log .info { color: #2980b9; }
+  .log .route { color: #8e44ad; font-weight: bold; }
+  .log .intel { color: #9b59b6; }
+  .log .effect { color: #e67e22; font-weight: bold; }
+  .log .trigger { color: #27ae60; font-weight: bold; }
+  .log .fail { color: #95a5a6; }
+
+  /* 航线选择 */
+  .route-option {
+    border: 2px solid #8d6e63;
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #fafafa;
+  }
+  .route-option:hover { border-color: #5d4037; background: #f5f5f5; }
+  .route-name { font-weight: bold; font-size: 14px; color: #5d4037; margin-bottom: 4px; }
+  .route-desc { font-size: 11px; color: #555; line-height: 1.5; }
+  .route-tag {
+    display: inline-block; font-size: 10px; padding: 2px 6px;
+    margin-right: 4px; margin-top: 4px; color: #fff; border-radius: 2px;
+  }
+  .tag-safe { background: #27ae60; }
+  .tag-risk { background: #e74c3c; }
+  .tag-tax { background: #f39c12; }
+  .tag-free { background: #3498db; }
+  .tag-effect { background: #e67e22; }
+
+  /* 情报市场 */
+  .intel-market {
+    border: 2px solid #9b59b6;
+    background: #fafafa;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .intel-market h3 { font-size: 13px; color: #9b59b6; margin-bottom: 8px; border-bottom: 1px solid #d7ccc8; padding-bottom: 4px; }
+  .intel-tier {
+    border: 2px solid #9b59b6;
+    padding: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #fff;
+  }
+  .intel-tier:hover { background: #f5eef8; }
+  .intel-tier.disabled { opacity: 0.4; cursor: not-allowed; }
+  .tier-price { font-weight: bold; color: #9b59b6; font-size: 14px; }
+  .tier-range { font-size: 11px; color: #555; }
+  .tier-tag {
+    display: inline-block; font-size: 10px; padding: 1px 5px;
+    color: #fff; background: #9b59b6; border-radius: 2px; margin-left: 6px;
+  }
+  .tier-prob { font-size: 11px; color: #e67e22; margin-top: 2px; }
+
+  /* 持有情报 */
+  .held-intel-item {
+    border: 2px solid #9b59b6;
+    padding: 8px;
+    margin-bottom: 6px;
+    background: #f5eef8;
+    font-size: 12px;
+  }
+  .held-intel-item .sell-btn {
+    margin-top: 6px;
+    padding: 4px 10px;
+    border: 1px solid #9b59b6;
+    background: #fff;
+    color: #9b59b6;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+  }
+  .held-intel-item .sell-btn:hover { background: #9b59b6; color: #fff; }
+
+  /* 按钮 */
+  .actions { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .big-btn {
+    padding: 10px; border: 2px solid #5d4037; background: #fff;
+    font-family: inherit; font-size: 14px; cursor: pointer; font-weight: bold;
+    color: #5d4037;
+    transition: all 0.15s;
+  }
+  .big-btn:hover { background: #5d4037; color: #fff; }
+  .big-btn:disabled { opacity: 0.4; cursor: not-allowed; background: #fff; color: #5d4037; }
+  .big-btn.primary { background: #5d4037; color: #fff; }
+  .big-btn.primary:hover { background: #3e2723; }
+  .big-btn.return { background: #27ae60; color: #fff; border-color: #1e8449; }
+  .big-btn.return:hover { background: #1e8449; }
+
+  .legend { font-size: 11px; margin-top: 10px; color: #5d4037; line-height: 1.6; }
+  .legend span { margin-right: 12px; display: inline-block; }
+
+  .voyage-status {
+    font-size: 11px; color: #8d6e63; margin-top: 6px;
+    min-height: 18px;
+  }
+
+  /* 声望 */
+  .reputation {
+    font-size: 11px; color: #8d6e63; margin-top: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .hold-hull { transform: scale(0.9); transform-origin: top center; }
+  }
+</style>
+</head>
+<body>
+
+<h1>大明海商 · 白模Demo</h1>
+<div class="header">
+  <span>资金: <b id="money">1000</b> 两</span>
+  <span>位置: <b id="location">月港</b></span>
+  <span>船舱: <b id="hold-info">0 / 24</b> 格</span>
+  <span>已购货值: <b id="cargo-value">0</b> 两</span>
+  <span>轮次: <b id="round">1</b></span>
+  <span>声望: <b id="reputation">0</b></span>
+</div>
+
+<div class="main">
+  <div>
+    <div class="panel">
+      <h2>本月情报</h2>
+      <div class="intel-list" id="intel-list"></div>
+    </div>
+    <div class="panel" style="margin-top: 10px;">
+      <h2>货物市场</h2>
+      <div class="market-list" id="market-list"></div>
+      <div class="legend">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#e74c3c;vertical-align:middle;margin-right:4px"></span>瓷器(易碎)</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#3498db;vertical-align:middle;margin-right:4px"></span>丝绸(怕潮)</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ecf0f1;border:1px solid #bdc3c7;vertical-align:middle;margin-right:4px"></span>白糖(怕潮)</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top: 10px;" id="held-intel-panel">
+      <h2>持有情报（返航后可在月港卖出）</h2>
+      <div class="intel-list" id="held-intel-list"></div>
+    </div>
+    <div class="panel" style="margin-top: 10px;" id="active-effects-panel">
+      <h2>已激活效果（下次航行生效）</h2>
+      <div id="active-effects-list" style="font-size:12px;color:#555;"></div>
+    </div>
+  </div>
+
+  <div class="panel hold-container">
+    <h2>船舱立剖面 (4宽 × 6高)</h2>
+    <div class="deck-label">▲ 甲 板 开 口 ▲</div>
+    <div class="hold-hull">
+      <div class="axis-x">
+        <span>0</span><span>1</span><span>2</span><span>3</span>
+      </div>
+      <div class="axis-y-wrap">
+        <div class="axis-y">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+        </div>
+        <div class="hold-grid" id="hold-grid"></div>
+      </div>
+    </div>
+    <div class="voyage-status" id="voyage-status"></div>
+    <div class="legend">
+      <span>🖱 点击货物选中 → 点击空格放置</span><br>
+      <span>🖱 点击已放置货物 → 移除并退款</span><br>
+      <span>底舱(y=4,5)随机格子会进水</span>
+      <span>船舷边缘随机格子会颠簸</span>
+      <span>✕=受损</span>
+      <span>蓝纹=受潮</span>
+      <span>黄框=颠簸</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>航行日志</h2>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="panel" style="margin-top: 10px;">
+      <h2>操作</h2>
+      <div class="actions" id="actions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CARGO_TYPES = {
+  瓷器: { name: '瓷器', basePrice: 200, w: 1, h: 2, fragile: true, moisture: false, symbol: '瓷', cls: 'cargo-c' },
+  丝绸: { name: '丝绸', basePrice: 120, w: 3, h: 1, fragile: false, moisture: true, symbol: '丝', cls: 'cargo-s' },
+  白糖: { name: '白糖', basePrice: 80, w: 2, h: 2, fragile: false, moisture: true, symbol: '糖', cls: 'cargo-t' }
+};
+
+const INTEL_POOL = [
+  { text: '马尼拉贵族筹备婚礼，急需瓷器', target: '瓷器', mult: 2.0, reliability: 0.9 },
+  { text: '西班牙商船大量倾销丝绸', target: '丝绸', mult: 0.5, reliability: 0.8 },
+  { text: '吕宋糖厂减产，白糖紧缺', target: '白糖', mult: 1.8, reliability: 0.7 },
+  { text: '台风季提前，海上风浪大', target: null, mult: 1.0, reliability: 0.6 },
+  { text: '月港新窑出精品，瓷器涨价', target: '瓷器', mult: 1.5, reliability: 0.5 },
+  { text: '无特别消息', target: null, mult: 1.0, reliability: 1.0 }
+];
+
+// 带效果的情报池
+const EFFECT_INTEL_POOL = [
+  {
+    text: '马尼拉港督换届，新官上任三把火',
+    effect: { type: 'price_boost', targets: ['丝绸', '瓷器'], mult: 1.5, desc: '港督换届：丝绸、瓷器售价×1.5' }
+  },
+  {
+    text: '月港水师换防，稽查松懈',
+    effect: { type: 'tax_exempt', chance: 0.5, desc: '水师换防：普通航线50%概率免税' }
+  },
+  {
+    text: '倭寇出没吕宋外海，商船绕行',
+    effect: { type: 'storm_boost', route: 'shortcut', bonus: 0.2, desc: '倭寇出没：捷径暴风雨概率+20%' }
+  },
+  {
+    text: '月港会馆联合抬价，瓷器出口受限',
+    effect: { type: 'buy_price_up', targets: ['瓷器'], mult: 1.2, desc: '会馆抬价：瓷器买入价×1.2' }
+  },
+  {
+    text: '吕宋土著起义，白糖运输中断',
+    effect: { type: 'price_boost', targets: ['白糖'], mult: 2.2, desc: '土著起义：白糖售价×2.2' }
+  },
+  {
+    text: '荷兰商馆新到一批呢绒，丝绸需求下降',
+    effect: { type: 'price_drop', targets: ['丝绸'], mult: 0.7, desc: '呢绒倾销：丝绸售价×0.7' }
+  },
+  {
+    text: '月港粮荒，船员索要高薪',
+    effect: { type: 'crew_cost', amount: 150, desc: '粮荒：下次航行额外支出150两' }
+  },
+  {
+    text: '马尼拉瘟疫流行，香料需求暴涨',
+    effect: { type: 'price_boost', targets: ['白糖'], mult: 1.8, desc: '瘟疫：白糖售价×1.8' }
+  }
+];
+
+const MANILA_PRICES = { 瓷器: 300, 丝绸: 180, 白糖: 100 };
+
+// 情报档位：价格 → 触发概率
+const INTEL_TIERS = [
+  { price: 100,  triggerProb: 0.3, minSellMult: 0.5, maxSellMult: 1.5, tag: '小道', tagColor: '#95a5a6' },
+  { price: 300,  triggerProb: 0.5, minSellMult: 0.6, maxSellMult: 2.0, tag: '一般', tagColor: '#f39c12' },
+  { price: 500,  triggerProb: 0.7, minSellMult: 0.7, maxSellMult: 2.5, tag: '可靠', tagColor: '#27ae60' },
+  { price: 800,  triggerProb: 0.85, minSellMult: 0.8, maxSellMult: 3.0, tag: '内部', tagColor: '#e74c3c' },
+  { price: 1000, triggerProb: 0.95, minSellMult: 1.0, maxSellMult: 4.0, tag: '绝密', tagColor: '#9b59b6' }
+];
+
+class Game {
+  constructor() {
+    this.money = 1000;
+    this.location = '月港';
+    this.hold = Array(6).fill(null).map(() => Array(4).fill(null));
+    this.placed = [];
+    this.selectedCargo = null;
+    this.intels = [];
+    this.phase = 'buy'; // buy, route_select, sell, intel_buy, intel_sell
+    this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+    this.selectedRoute = null;
+    this.round = 1;
+    this.intelInventory = []; // 持有情报
+    this.activeEffects = []; // 已激活的效果（下次航行生效）
+    this.reputation = 0; // 声望：成功触发情报事件+1
+    this.init();
+  }
+
+  init() {
+    this.generateIntels();
+    this.renderAll();
+    this.log('=== 新一局开始 ===', 'info');
+    this.log('目标：往返月港-马尼拉，积累财富与声望。');
+    this.log('情报机制：购买情报→返航卖出→概率触发事件→触发成功则下次情报交易更赚钱');
+  }
+
+  generateIntels() {
+    const pool = [...INTEL_POOL];
+    this.intels = [];
+    for (let i = 0; i < 3; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      this.intels.push(pool.splice(idx, 1)[0]);
+    }
+  }
+
+  generateIntelMarket() {
+    this.intelMarket = INTEL_TIERS.map(tier => {
+      const template = EFFECT_INTEL_POOL[Math.floor(Math.random() * EFFECT_INTEL_POOL.length)];
+      return {
+        text: template.text,
+        effect: template.effect,
+        buyPrice: tier.price,
+        triggerProb: tier.triggerProb,
+        minSell: Math.floor(tier.price * tier.minSellMult * (1 + this.reputation * 0.1)),
+        maxSell: Math.floor(tier.price * tier.maxSellMult * (1 + this.reputation * 0.1)),
+        tag: tier.tag,
+        tagColor: tier.tagColor,
+        id: Math.random().toString(36).substr(2, 9)
+      };
+    });
+  }
+
+  getCargoValue() {
+    return this.placed.reduce((sum, item) => sum + CARGO_TYPES[item.name].basePrice, 0);
+  }
+
+  canPlace(name, x, y) {
+    const c = CARGO_TYPES[name];
+    if (x + c.w > 4 || y + c.h > 6) return false;
+    for (let dy = 0; dy < c.h; dy++) {
+      for (let dx = 0; dx < c.w; dx++) {
+        if (this.hold[y + dy][x + dx] !== null) return false;
+      }
+    }
+    return true;
+  }
+
+  place(name, x, y) {
+    if (!this.canPlace(name, x, y)) {
+      this.log(`无法放置：空间不足或越界 (${x},${y})`, 'loss');
+      return false;
+    }
+    const c = CARGO_TYPES[name];
+    let price = c.basePrice;
+    for (const eff of this.activeEffects) {
+      if (eff.type === 'buy_price_up' && eff.targets && eff.targets.includes(name)) {
+        price = Math.floor(price * eff.mult);
+      }
+    }
+    if (this.money < price) {
+      this.log(`资金不足，需要 ${price} 两`, 'loss');
+      return false;
+    }
+
+    const item = { name, x, y, damaged: false, cells: [] };
+    for (let dy = 0; dy < c.h; dy++) {
+      for (let dx = 0; dx < c.w; dx++) {
+        this.hold[y + dy][x + dx] = item;
+        item.cells.push({ x: x + dx, y: y + dy });
+      }
+    }
+    this.placed.push(item);
+    this.money -= price;
+    if (price !== c.basePrice) {
+      this.log(`购入 ${name}，因市场波动花费 ${price} 两（原价${c.basePrice}两），放置在 (${x},${y})`);
+    } else {
+      this.log(`购入 ${name}，花费 ${price} 两，放置在 (${x},${y})`);
+    }
+    this.selectedCargo = null;
+    this.renderAll();
+    return true;
+  }
+
+  removeCargo(x, y) {
+    const item = this.hold[y][x];
+    if (!item) return;
+    const c = CARGO_TYPES[item.name];
+    let price = c.basePrice;
+    for (const eff of this.activeEffects) {
+      if (eff.type === 'buy_price_up' && eff.targets && eff.targets.includes(item.name)) {
+        price = Math.floor(price * eff.mult);
+      }
+    }
+    for (const cell of item.cells) {
+      this.hold[cell.y][cell.x] = null;
+    }
+    const idx = this.placed.indexOf(item);
+    if (idx > -1) this.placed.splice(idx, 1);
+    this.money += price;
+    this.log(`移除 ${item.name}，退款 ${price} 两`, 'info');
+    this.renderAll();
+  }
+
+  selectRoute(routeType) {
+    this.selectedRoute = routeType;
+    this.log(`━━━━━━━━━━━━━━━━━━━━━━━`, 'route');
+
+    if (routeType === 'normal') {
+      this.log('【选择】走普通稳定贸易线路', 'route');
+
+      let taxExempt = false;
+      for (const eff of this.activeEffects) {
+        if (eff.type === 'tax_exempt') {
+          if (Math.random() < eff.chance) {
+            taxExempt = true;
+            this.log(`  [效果触发] ${eff.desc}`, 'effect');
+            break;
+          }
+        }
+      }
+
+      const tax = Math.floor(this.getCargoValue() * 0.1);
+      if (taxExempt) {
+        this.log('  水师换防期间，引税得免！', 'gain');
+      } else if (tax > 0) {
+        this.money -= tax;
+        this.log(`  缴纳引税 ${tax} 两（货值${this.getCargoValue()}两的十分之一）`, 'loss');
+      } else {
+        this.log('  未购货物，无需缴税');
+      }
+
+      this.log('  航线平稳，但航程漫长...', 'info');
+      let expiredCount = 0;
+      for (const intel of this.intels) {
+        if (intel.target && Math.random() < 0.5) {
+          intel._expired = true;
+          expiredCount++;
+        }
+      }
+      if (expiredCount > 0) {
+        this.log(`  因航程延误，${expiredCount} 条市场情报已过期！`, 'loss');
+      } else {
+        this.log('  市场情报尚在有效期内');
+      }
+
+      this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+      const events = [];
+      const hasStormIntel = this.intels.some(i => i.text === '台风季提前，海上风浪大' && !i._expired);
+      let stormProb = 0.1;
+      if (hasStormIntel) stormProb += 0.2;
+      if (Math.random() < stormProb) events.push('storm');
+      if (Math.random() < 0.1) events.push('rough');
+      else if (events.length === 0) events.push('calm');
+
+      this.processVoyageEvents(events);
+
+    } else if (routeType === 'shortcut') {
+      this.log('【选择】走走私捷径', 'route');
+      this.log('  捷径省时，但风浪难测...', 'info');
+      this.log('  走私捷径，免缴引税', 'gain');
+
+      let stormBonus = 0;
+      for (const eff of this.activeEffects) {
+        if (eff.type === 'storm_boost' && eff.route === 'shortcut') {
+          stormBonus += eff.bonus;
+          this.log(`  [效果影响] ${eff.desc}`, 'effect');
+        }
+      }
+
+      const delayed = Math.random() < 0.1;
+      if (delayed) {
+        this.log('! 遭遇极端天气，船队被迫在荒岛避风数日！', 'event');
+        this.log('  抵达马尼拉时，市场窗口已关闭，所有情报失效！', 'loss');
+        for (const intel of this.intels) {
+          intel._expired = true;
+        }
+      } else {
+        this.log('  虽有风浪，但按时抵达');
+      }
+
+      this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+      const events = [];
+      const hasStormIntel = this.intels.some(i => i.text === '台风季提前，海上风浪大' && !i._expired);
+      let stormProb = 0.5 + stormBonus;
+      if (hasStormIntel) stormProb += 0.3;
+      if (Math.random() < stormProb) events.push('storm');
+      if (Math.random() < 0.4) events.push('rough');
+      if (events.length === 0) events.push('calm');
+
+      this.processVoyageEvents(events);
+
+      if (!delayed && Math.random() < 0.3) {
+        const newIntel = EFFECT_INTEL_POOL[Math.floor(Math.random() * EFFECT_INTEL_POOL.length)];
+        this.intels.push({...newIntel, target: null, mult: 1.0, reliability: 1.0});
+        this.log(`  途中偶遇返航商船，获得新情报：「${newIntel.text}」`, 'gain');
+      }
+    }
+
+    for (const eff of this.activeEffects) {
+      if (eff.type === 'crew_cost') {
+        this.money -= eff.amount;
+        this.log(`  [效果触发] ${eff.desc}，支出 ${eff.amount} 两`, 'effect');
+      }
+    }
+
+    this.location = '马尼拉';
+    this.phase = 'sell';
+    this.log('>>> 抵达马尼拉');
+    this.log('【提示】点击"查看货物状态"检查受损情况，再卖出。');
+    this.renderAll();
+  }
+
+  processVoyageEvents(events) {
+    for (const ev of events) {
+      if (ev === 'storm') {
+        this.log('! 遭遇暴风雨！底舱部分格子进水！', 'event');
+        const damaged = this.applyStorm();
+        if (damaged.length) {
+          this.log(`  受损货物: ${damaged.join(', ')}`, 'loss');
+        } else {
+          this.log('  进水格子未波及怕潮货物，侥幸躲过');
+        }
+      } else if (ev === 'rough') {
+        this.log('! 海上大浪，船身部分区域颠簸！', 'event');
+        const damaged = this.applyRoughSea();
+        if (damaged.length) {
+          this.log(`  受损货物: ${damaged.join(', ')}`, 'loss');
+        } else {
+          this.log('  颠簸格子未波及易碎货物，平安度过');
+        }
+      } else if (ev === 'calm') {
+        this.log('~ 风平浪静，无事发生');
+      }
+    }
+  }
+
+  applyStorm() {
+    const bottomCells = [];
+    for (let y = 4; y < 6; y++) {
+      for (let x = 0; x < 4; x++) {
+        bottomCells.push({ x, y });
+      }
+    }
+    const count = 3 + Math.floor(Math.random() * 3);
+    this.shuffle(bottomCells);
+    this.voyageEffects.floodedCells = bottomCells.slice(0, count);
+
+    const damagedNames = [];
+    for (const item of this.placed) {
+      const c = CARGO_TYPES[item.name];
+      if (!c.moisture || item.damaged) continue;
+      const hit = item.cells.some(cell =>
+        this.voyageEffects.floodedCells.some(fc => fc.x === cell.x && fc.y === cell.y)
+      );
+      if (hit) {
+        item.damaged = true;
+        damagedNames.push(item.name);
+      }
+    }
+    return [...new Set(damagedNames)];
+  }
+
+  applyRoughSea() {
+    const edgeCells = [];
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 4; x++) {
+        if (x === 0 || x === 3 || y === 0 || y === 5) {
+          edgeCells.push({ x, y });
+        }
+      }
+    }
+    const count = 4 + Math.floor(Math.random() * 5);
+    this.shuffle(edgeCells);
+    this.voyageEffects.turbulenceCells = edgeCells.slice(0, count);
+
+    const damagedNames = [];
+    for (const item of this.placed) {
+      const c = CARGO_TYPES[item.name];
+      if (!c.fragile || item.damaged) continue;
+      const hit = item.cells.some(cell =>
+        this.voyageEffects.turbulenceCells.some(tc => tc.x === cell.x && tc.y === cell.y)
+      );
+      if (hit) {
+        item.damaged = true;
+        damagedNames.push(item.name);
+      }
+    }
+    return [...new Set(damagedNames)];
+  }
+
+  shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  showCargoStatus() {
+    if (this.placed.length === 0) {
+      this.log('船舱为空，无货物可检查。');
+      return;
+    }
+    this.log('--- 货物状态检查 ---', 'info');
+    const summary = {};
+    for (const item of this.placed) {
+      const key = item.name + (item.damaged ? '(受损)' : '(完好)');
+      summary[key] = (summary[key] || 0) + 1;
+    }
+    for (const [k, v] of Object.entries(summary)) {
+      this.log(`  ${k}: ${v} 件`);
+    }
+  }
+
+  sellAll() {
+    if (this.location !== '马尼拉') return;
+    if (this.placed.length === 0) {
+      this.log('船舱为空，无货可卖。');
+      return;
+    }
+
+    let total = 0;
+    const lines = [];
+
+    for (const item of this.placed) {
+      const c = CARGO_TYPES[item.name];
+      let basePrice = MANILA_PRICES[item.name];
+      let finalPrice = basePrice;
+      let notes = [];
+
+      for (const eff of this.activeEffects) {
+        if ((eff.type === 'price_boost' || eff.type === 'price_drop') && eff.targets && eff.targets.includes(item.name)) {
+          finalPrice = Math.floor(finalPrice * eff.mult);
+          notes.push(`效果影响(${eff.mult >= 1 ? '+' : ''}${Math.floor((eff.mult-1)*100)}%)`);
+        }
+      }
+
+      for (const intel of this.intels) {
+        if (intel.target === item.name && !intel._expired) {
+          if (Math.random() < intel.reliability) {
+            finalPrice = Math.floor(finalPrice * intel.mult);
+            notes.push(`情报应验(+${Math.floor((intel.mult-1)*100)}%)`);
+          } else {
+            notes.push('情报落空');
+          }
+        }
+      }
+
+      if (item.damaged) {
+        finalPrice = Math.floor(finalPrice * 0.3);
+        notes.push('受损折价(-70%)');
+      }
+
+      total += finalPrice;
+      lines.push({
+        name: item.name,
+        damaged: item.damaged,
+        basePrice,
+        finalPrice,
+        notes
+      });
+    }
+
+    this.log('════════════ 卖出结算 ════════════', 'gain');
+    for (const line of lines) {
+      const dmgTag = line.damaged ? ' [受损]' : '';
+      const noteStr = line.notes.length ? ` (${line.notes.join(', ')})` : '';
+      this.log(`  ${line.name}${dmgTag}: ${line.basePrice}两 → ${line.finalPrice}两${noteStr}`);
+    }
+    this.log(`─────────────────────────────────`);
+    this.log(`  总收入: ${total}两`, 'gain');
+    this.log(`  当前资金: ${this.money + total}两`, 'gain');
+    this.log('═════════════════════════════════');
+
+    this.money += total;
+
+    this.placed = [];
+    this.hold = Array(6).fill(null).map(() => Array(4).fill(null));
+    this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+
+    this.phase = 'intel_buy';
+    this.generateIntelMarket();
+    this.log('');
+    this.log('>>> 进入马尼拉情报市场', 'intel');
+    this.log('购买情报带回月港。情报卖出时概率触发事件，触发成功则下次交易更赚钱。', 'intel');
+    this.renderAll();
+  }
+
+  buyIntel(intelId) {
+    const intel = this.intelMarket.find(i => i.id === intelId);
+    if (!intel) return;
+    if (this.money < intel.buyPrice) {
+      this.log(`资金不足，需要 ${intel.buyPrice} 两`, 'loss');
+      return;
+    }
+    this.money -= intel.buyPrice;
+    this.intelInventory.push({ ...intel, heldId: Math.random().toString(36).substr(2, 9) });
+    this.log(`花费 ${intel.buyPrice} 两购入 [${intel.tag}] 情报：「${intel.text}」`, 'intel');
+    this.log(`  触发概率: ${Math.floor(intel.triggerProb * 100)}% | 效果：${intel.effect.desc}`, 'effect');
+    this.log(`  返航回月港后可卖出，预计售价 ${intel.minSell}~${intel.maxSell} 两`, 'info');
+    this.renderAll();
+  }
+
+  returnVoyage() {
+    this.log('>>> 返航回月港...', 'route');
+    this.log('  海风平稳，一路顺风');
+
+    this.placed = [];
+    this.hold = Array(6).fill(null).map(() => Array(4).fill(null));
+    this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+    this.selectedRoute = null;
+    this.location = '月港';
+    this.phase = 'intel_sell';
+    this.round++;
+    this.generateIntels();
+    this.renderAll();
+    this.log('');
+    this.log(`━━━━━━━━━━━━━━━━━━━━━━━`);
+    this.log(`>>> 回到月港（第 ${this.round} 轮）`);
+    this.log(`当前资金: ${this.money}两 | 声望: ${this.reputation}`);
+    if (this.intelInventory.length > 0) {
+      this.log(`持有 ${this.intelInventory.length} 条情报，可卖出。卖出时概率触发事件。`);
+    }
+    this.log(`━━━━━━━━━━━━━━━━━━━━━━━`);
+  }
+
+  sellIntel(index) {
+    const intel = this.intelInventory[index];
+    if (!intel) return;
+
+    // 判定情报是否触发
+    const triggered = Math.random() < intel.triggerProb;
+
+    let actualSell;
+    if (triggered) {
+      // 触发成功：售价取高区间
+      const highRange = intel.maxSell - Math.floor((intel.maxSell + intel.minSell) / 2);
+      actualSell = Math.floor((intel.maxSell + intel.minSell) / 2) + Math.floor(Math.random() * (highRange + 1));
+    } else {
+      // 触发失败：售价取低区间
+      const lowRange = Math.floor((intel.maxSell + intel.minSell) / 2) - intel.minSell;
+      actualSell = intel.minSell + Math.floor(Math.random() * (lowRange + 1));
+    }
+
+    this.money += actualSell;
+    const profit = actualSell - intel.buyPrice;
+    const profitCls = profit >= 0 ? 'gain' : 'loss';
+
+    this.log(`本地售出 [${intel.tag}] 情报：「${intel.text}」`, 'intel');
+
+    if (triggered) {
+      this.log(`  [触发成功！] 情报应验！`, 'trigger');
+      this.reputation++;
+      this.log(`  声望 +1（当前声望: ${this.reputation}）`, 'gain');
+    } else {
+      this.log(`  [触发失败] 情报落空...`, 'fail');
+    }
+
+    this.log(`  买入 ${intel.buyPrice}两 → 卖出 ${actualSell}两 | 盈亏 ${profit >= 0 ? '+' : ''}${profit}两`, profitCls);
+
+    // 无论是否触发，效果都激活（但触发成功才加声望）
+    if (intel.effect) {
+      this.activeEffects.push({ ...intel.effect });
+      this.log(`  [效果激活] ${intel.effect.desc} —— 下次航行生效！`, 'effect');
+    }
+
+    this.intelInventory.splice(index, 1);
+    this.renderAll();
+  }
+
+  startNextTrip() {
+    // 清除未售出情报（失效）
+    const unsoldCount = this.intelInventory.length;
+    if (unsoldCount > 0) {
+      this.log(`${unsoldCount} 条未售出情报因再次出航而失去时效...`, 'loss');
+      this.intelInventory = [];
+    }
+
+    this.phase = 'buy';
+    this.renderAll();
+    this.log('');
+    this.log('=== 开始新一轮采购 ===', 'info');
+    if (this.activeEffects.length > 0) {
+      this.log('已激活效果将在本次航行中生效：');
+      for (const eff of this.activeEffects) {
+        this.log(`  · ${eff.desc}`, 'effect');
+      }
+    }
+    this.log(`当前声望: ${this.reputation} —— 情报交易售价加成 ${this.reputation * 10}%`, 'info');
+  }
+
+  restart() {
+    this.money = 1000;
+    this.location = '月港';
+    this.hold = Array(6).fill(null).map(() => Array(4).fill(null));
+    this.placed = [];
+    this.selectedCargo = null;
+    this.phase = 'buy';
+    this.voyageEffects = { floodedCells: [], turbulenceCells: [] };
+    this.selectedRoute = null;
+    this.round = 1;
+    this.intelInventory = [];
+    this.activeEffects = [];
+    this.reputation = 0;
+    this.generateIntels();
+    this.renderAll();
+    this.log('=== 完全重置 ===', 'info');
+  }
+
+  log(msg, cls = '') {
+    const logEl = document.getElementById('log');
+    const p = document.createElement('p');
+    if (cls) p.className = cls;
+    p.textContent = msg;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  renderAll() {
+    document.getElementById('money').textContent = this.money;
+    document.getElementById('location').textContent = this.location;
+    document.getElementById('round').textContent = this.round;
+    document.getElementById('reputation').textContent = this.reputation;
+    const used = this.placed.reduce((s, i) => s + i.cells.length, 0);
+    document.getElementById('hold-info').textContent = `${used} / 24`;
+    document.getElementById('cargo-value').textContent = this.getCargoValue();
+
+    this.renderIntels();
+    this.renderMarket();
+    this.renderGrid();
+    this.renderActions();
+    this.renderVoyageStatus();
+    this.renderHeldIntels();
+    this.renderActiveEffects();
+  }
+
+  renderVoyageStatus() {
+    const el = document.getElementById('voyage-status');
+    const f = this.voyageEffects.floodedCells.length;
+    const t = this.voyageEffects.turbulenceCells.length;
+    if (f > 0 && t > 0) {
+      el.textContent = `⚠ 船舱状态：${f}格进水 + ${t}格颠簸`;
+      el.style.color = '#c0392b';
+    } else if (f > 0) {
+      el.textContent = `⚠ 船舱状态：${f}格底舱进水`;
+      el.style.color = '#2980b9';
+    } else if (t > 0) {
+      el.textContent = `⚠ 船舱状态：${t}格边缘颠簸`;
+      el.style.color = '#f39c12';
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  renderIntels() {
+    const el = document.getElementById('intel-list');
+    el.innerHTML = '';
+    this.intels.forEach((intel) => {
+      let cls = 'normal';
+      let tag = '一般';
+      if (intel._expired) { cls = 'expired'; tag = '已过期'; }
+      else if (intel.reliability > 0.8) { cls = 'reliable'; tag = '可靠'; }
+      else if (intel.reliability < 0.5) { cls = 'rumor'; tag = '小道'; }
+      const div = document.createElement('div');
+      div.className = `intel-card ${cls}`;
+      div.innerHTML = `<span class="intel-tag">${tag}</span><div>${intel.text}</div>`;
+      el.appendChild(div);
+    });
+  }
+
+  renderHeldIntels() {
+    const panel = document.getElementById('held-intel-panel');
+    const el = document.getElementById('held-intel-list');
+    el.innerHTML = '';
+
+    if (this.intelInventory.length === 0) {
+      el.innerHTML = '<div style="font-size:12px;color:#777">暂无持有情报</div>';
+      return;
+    }
+
+    this.intelInventory.forEach((intel, idx) => {
+      const div = document.createElement('div');
+      div.className = 'held-intel-item';
+      const canSell = this.phase === 'intel_sell';
+      div.innerHTML = `
+        <div><span class="tier-tag" style="background:${intel.tagColor}">${intel.tag}</span> ${intel.text}</div>
+        <div style="font-size:11px;color:#555;margin-top:4px;">
+          买入 ${intel.buyPrice}两 | 触发概率 ${Math.floor(intel.triggerProb*100)}%
+        </div>
+        <div style="font-size:11px;color:#e67e22;margin-top:2px;">效果：${intel.effect.desc}</div>
+        <div style="font-size:11px;color:#555;margin-top:2px;">预计售出: ${intel.minSell}~${intel.maxSell} 两</div>
+        ${canSell ? `<button class="sell-btn" onclick="game.sellIntel(${idx})">本地卖出（${Math.floor(intel.triggerProb*100)}%触发）</button>` : '<div style="font-size:11px;color:#777;margin-top:4px;">返航回月港后可卖出</div>'}
+      `;
+      el.appendChild(div);
+    });
+  }
+
+  renderActiveEffects() {
+    const panel = document.getElementById('active-effects-panel');
+    const el = document.getElementById('active-effects-list');
+
+    if (this.activeEffects.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    el.innerHTML = '<ul style="margin-left:16px;">' + 
+      this.activeEffects.map(eff => `<li>${eff.desc}</li>`).join('') + 
+      '</ul>';
+  }
+
+  renderMarket() {
+    const el = document.getElementById('market-list');
+    el.innerHTML = '';
+    if (this.location !== '月港' || this.phase !== 'buy') {
+      el.innerHTML = '<div style="font-size:12px;color:#777">当前不在采购阶段</div>';
+      return;
+    }
+    Object.entries(CARGO_TYPES).forEach(([name, c]) => {
+      const btn = document.createElement('button');
+      const isSelected = this.selectedCargo === name;
+      btn.className = 'cargo-btn' + (isSelected ? ' selected' : '');
+      const tags = [];
+      if (c.fragile) tags.push('<span class="tag">易碎</span>');
+      if (c.moisture) tags.push('<span class="tag">怕潮</span>');
+
+      let price = c.basePrice;
+      for (const eff of this.activeEffects) {
+        if (eff.type === 'buy_price_up' && eff.targets && eff.targets.includes(name)) {
+          price = Math.floor(price * eff.mult);
+        }
+      }
+      const priceDisplay = price !== c.basePrice ? `<span style="color:#e74c3c">${price}两</span> <s style="font-size:10px;color:#999">${c.basePrice}两</s>` : `${price}两`;
+
+      const color = name === '瓷器' ? '#e74c3c' : name === '丝绸' ? '#3498db' : '#ecf0f1';
+      const border = name === '白糖' ? 'border:1px solid #bdc3c7;' : '';
+      btn.innerHTML = `<span><span class="cargo-symbol" style="background:${color};${border}"></span>${name} ${priceDisplay}</span><span>${tags.join('')} ${c.w}×${c.h}</span>`;
+      btn.onclick = () => {
+        if (isSelected) {
+          this.selectedCargo = null;
+        } else {
+          this.selectedCargo = name;
+        }
+        this.renderAll();
+      };
+      el.appendChild(btn);
+    });
+  }
+
+  renderGrid() {
+    const el = document.getElementById('hold-grid');
+    el.innerHTML = '';
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 4; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+
+        if (y === 0) cell.classList.add('deck');
+        if (y >= 4) cell.classList.add('bottom-deck');
+        if (x === 0) cell.classList.add('ship-edge-left');
+        if (x === 3) cell.classList.add('ship-edge-right');
+        if (x === 0 || x === 3 || y === 0 || y === 5) cell.classList.add('ship-edge');
+
+        if (this.voyageEffects.floodedCells.some(fc => fc.x === x && fc.y === y)) {
+          cell.classList.add('flooded');
+        }
+        if (this.voyageEffects.turbulenceCells.some(tc => tc.x === x && tc.y === y)) {
+          cell.classList.add('turbulence');
+        }
+
+        const item = this.hold[y][x];
+        if (item) {
+          const c = CARGO_TYPES[item.name];
+          cell.classList.add(c.cls);
+          cell.textContent = c.symbol;
+          if (item.damaged) cell.classList.add('damaged');
+        }
+
+        cell.onclick = () => {
+          if (this.phase === 'buy') {
+            if (item) {
+              this.removeCargo(x, y);
+            } else if (this.selectedCargo) {
+              this.place(this.selectedCargo, x, y);
+            }
+          }
+        };
+        el.appendChild(cell);
+      }
+    }
+  }
+
+  renderActions() {
+    const el = document.getElementById('actions');
+    el.innerHTML = '';
+
+    if (this.phase === 'buy') {
+      const routeBtn = document.createElement('button');
+      routeBtn.className = 'big-btn primary';
+      routeBtn.textContent = '装货完毕，选择航线';
+      routeBtn.onclick = () => {
+        this.phase = 'route_select';
+        this.renderAll();
+      };
+      el.appendChild(routeBtn);
+    } else if (this.phase === 'route_select') {
+      const cargoValue = this.getCargoValue();
+
+      let taxExemptHint = '';
+      for (const eff of this.activeEffects) {
+        if (eff.type === 'tax_exempt') {
+          taxExemptHint = '（水师换防中，可能免税）';
+        }
+      }
+      const tax = Math.floor(cargoValue * 0.1);
+
+      const normalDiv = document.createElement('div');
+      normalDiv.className = 'route-option';
+      normalDiv.innerHTML = `
+        <div class="route-name">📜 普通稳定贸易线路</div>
+        <div class="route-desc">
+          经官方水道，持引票通行。航程较长，部分市场情报可能过期。
+          风浪极小，货物安全。${taxExemptHint}
+        </div>
+        <div>
+          <span class="route-tag tag-tax">需缴税 ${tax} 两</span>
+          <span class="route-tag tag-safe">安全</span>
+          <span class="route-tag tag-safe">情报可能过期</span>
+        </div>
+      `;
+      normalDiv.onclick = () => this.selectRoute('normal');
+      el.appendChild(normalDiv);
+
+      const shortcutDiv = document.createElement('div');
+      shortcutDiv.className = 'route-option';
+      shortcutDiv.innerHTML = `
+        <div class="route-name">⚡ 走私捷径</div>
+        <div class="route-desc">
+          抄近路穿过暗礁海域，无税。但暴风雨与颠簸频发，
+          极小概率因极端天气延误导致错过市场窗口。
+          途中可能偶遇商船获得新情报。
+        </div>
+        <div>
+          <span class="route-tag tag-free">免税</span>
+          <span class="route-tag tag-risk">高风险</span>
+          <span class="route-tag tag-risk">可能延误</span>
+          <span class="route-tag tag-safe">可能获新情报</span>
+        </div>
+      `;
+      shortcutDiv.onclick = () => this.selectRoute('shortcut');
+      el.appendChild(shortcutDiv);
+
+      const backBtn = document.createElement('button');
+      backBtn.className = 'big-btn';
+      backBtn.textContent = '← 返回调整货物';
+      backBtn.onclick = () => {
+        this.phase = 'buy';
+        this.renderAll();
+      };
+      el.appendChild(backBtn);
+    } else if (this.phase === 'sell') {
+      const checkBtn = document.createElement('button');
+      checkBtn.className = 'big-btn';
+      checkBtn.textContent = '🔍 查看货物状态';
+      checkBtn.onclick = () => this.showCargoStatus();
+      el.appendChild(checkBtn);
+
+      const sellBtn = document.createElement('button');
+      sellBtn.className = 'big-btn primary';
+      sellBtn.textContent = '💰 卖出所有货物';
+      sellBtn.onclick = () => this.sellAll();
+      el.appendChild(sellBtn);
+    } else if (this.phase === 'intel_buy') {
+      const marketDiv = document.createElement('div');
+      marketDiv.className = 'intel-market';
+      marketDiv.innerHTML = '<h3>马尼拉情报市场（返航后可在月港卖出）</h3>';
+
+      this.intelMarket.forEach(intel => {
+        const tierDiv = document.createElement('div');
+        const canAfford = this.money >= intel.buyPrice;
+        tierDiv.className = 'intel-tier' + (canAfford ? '' : ' disabled');
+        tierDiv.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="tier-price">${intel.buyPrice}两</span>
+            <span class="tier-tag" style="background:${intel.tagColor}">${intel.tag}</span>
+          </div>
+          <div style="font-size:11px;color:#555;margin-top:4px;">${intel.text}</div>
+          <div class="tier-prob">触发概率: ${Math.floor(intel.triggerProb*100)}% | 效果：${intel.effect.desc}</div>
+          <div class="tier-range">返航售出预计: ${intel.minSell}~${intel.maxSell} 两（声望加成${this.reputation*10}%）</div>
+        `;
+        if (canAfford) {
+          tierDiv.onclick = () => this.buyIntel(intel.id);
+        }
+        marketDiv.appendChild(tierDiv);
+      });
+      el.appendChild(marketDiv);
+
+      const returnBtn = document.createElement('button');
+      returnBtn.className = 'big-btn return';
+      returnBtn.textContent = '🚢 返航回月港';
+      returnBtn.onclick = () => this.returnVoyage();
+      el.appendChild(returnBtn);
+    } else if (this.phase === 'intel_sell') {
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'big-btn primary';
+      nextBtn.textContent = '开始新一轮采购';
+      nextBtn.onclick = () => this.startNextTrip();
+      el.appendChild(nextBtn);
+    }
+
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'big-btn';
+    resetBtn.textContent = '完全重置';
+    resetBtn.onclick = () => this.restart();
+    el.appendChild(resetBtn);
+  }
+}
+
+const game = new Game();
+
+// ===== 信息经济+航行时间优化补丁 =====
+game.currentDay = 0;
+game.voyageDays = 0;
+
+const originalGenerateIntelMarket = game.generateIntelMarket.bind(game);
+game.generateIntelMarket = function(){
+  originalGenerateIntelMarket();
+  this.intelMarket.forEach(i=>{
+    i.eventDay = 20 + Math.floor(Math.random()*90);
+    i.duration = 10 + Math.floor(Math.random()*30);
+  });
+};
+
+// 购买前隐藏情报内容
+const originalRenderActions = game.renderActions.bind(game);
+game.renderActions = function(){
+  originalRenderActions();
+  if(this.phase==='intel_buy'){
+    const tiers=document.querySelectorAll('.intel-tier');
+    tiers.forEach((el,index)=>{
+      const intel=this.intelMarket[index];
+      if(intel && !intel.revealed){
+        el.querySelectorAll('div')[1].textContent='未知海外消息（购买后揭晓）';
+        el.querySelectorAll('div')[2].textContent='支付后获得事件内容与时间窗口';
+      }
+    });
+  }
+};
+
+const oldBuyIntel=game.buyIntel.bind(game);
+game.buyIntel=function(id){
+  oldBuyIntel(id);
+  const intel=this.intelInventory[this.intelInventory.length-1];
+  if(intel){
+    intel.revealed=true;
+    intel.text += `（事件将在第${this.currentDay+intel.eventDay}天发生，持续${intel.duration}天）`;
+    this.log(`【消息揭晓】${intel.text}`,'intel');
+  }
+};
+
+// 航行时间计算
+const oldSelectRoute=game.selectRoute.bind(game);
+game.selectRoute=function(type){
+  let base=10;
+  if(type==='shortcut') base=7;
+  this.voyageDays=base;
+  oldSelectRoute(type);
+  if(Math.random()<0.35){
+    const delay=10+Math.floor(Math.random()*21);
+    this.voyageDays+=delay;
+    this.currentDay+=delay;
+    this.log(`遭遇恶劣天气，航行延误${delay}天，预计抵达时间增加。`,'event');
+  }
+  this.currentDay+=base;
+  this.log(`预计${this.voyageDays}天后抵达马尼拉，当前日期第${this.currentDay}天。`,'route');
+};
+
+const oldReturn=game.returnVoyage.bind(game);
+game.returnVoyage=function(){
+  this.currentDay+=10;
+  this.log(`返航预计10天，当前日期第${this.currentDay}天。`,'route');
+  oldReturn();
+};
+
+// 消息出售限制：声望20以上且事件未结束
+const oldSellIntel=game.sellIntel.bind(game);
+game.sellIntel=function(index){
+  const intel=this.intelInventory[index];
+  if(this.reputation<20){
+    this.log('声望不足20，暂无商人愿意购买消息。','fail');
+    return;
+  }
+  if(intel && intel.eventDay && this.currentDay>intel.eventDay+intel.duration){
+    this.log('该消息对应事件已经结束，无法出售。','fail');
+    return;
+  }
+  oldSellIntel(index);
+};
+
+
+// ===== 多港口贸易网络扩展 =====
+game.currentPort = '月港';
+game.ports = {
+  '月港': {
+    goods:[
+      {name:'瓷器',price:200,size:'1×2'},
+      {name:'丝绸',price:120,size:'3×1'},
+      {name:'白糖',price:80,size:'2×2'}
+    ],
+    intel:'出口贸易消息'
+  },
+  '马尼拉': {
+    goods:[
+      {name:'烟草',price:90,size:'2×1'},
+      {name:'珍珠',price:500,size:'1×2'}
+    ],
+    intel:'海外市场需求消息'
+  },
+  '暹罗': {
+    goods:[
+      {name:'香料',price:250,size:'1×2'},
+      {name:'木材',price:60,size:'2×2'}
+    ],
+    intel:'当地贵族采购消息'
+  },
+  '南洋': {
+    goods:[
+      {name:'高级香料',price:400,size:'1×1'},
+      {name:'珍珠',price:600,size:'1×2'}
+    ],
+    intel:'航线与资源消息'
+  }
+};
+
+// 商品销售规则：购买地不能原地出售，其余港口根据倍率销售
+const marketRate={
+ '瓷器':{'马尼拉':1.8,'暹罗':2.2,'南洋':2.8},
+ '丝绸':{'马尼拉':1.5,'暹罗':2,'南洋':2.3},
+ '白糖':{'马尼拉':1.6,'暹罗':1.2,'南洋':1.8},
+ '香料':{'月港':2.2,'马尼拉':3,'南洋':0},
+ '木材':{'月港':1.5,'马尼拉':1.8,'南洋':0},
+ '高级香料':{'月港':3,'马尼拉':2.5,'暹罗':1.2},
+ '珍珠':{'月港':2.5,'马尼拉':1.5,'暹罗':2}
+};
+
+// 目的港选择
+const oldVoyageSelect=game.selectRoute.bind(game);
+game.selectRoute=function(type){
+  oldVoyageSelect(type);
+  this.showPortChoices=true;
+};
+
+// 增强航行目的地选择显示
+const oldRenderActions2=game.renderActions.bind(game);
+game.renderActions=function(){
+  oldRenderActions2();
+  if(this.showPortChoices && (this.phase==='route'||this.phase==='voyage')){
+    const el=document.getElementById('actions');
+    if(el){
+      const box=document.createElement('div');
+      box.className='intel-market';
+      box.innerHTML='<h3>选择下一目的港</h3>';
+      Object.keys(this.ports).forEach(p=>{
+        if(p!==this.currentPort){
+          const b=document.createElement('button');
+          b.className='big-btn';
+          const day={月港:10,马尼拉:10,暹罗:15,南洋:25}[p];
+          b.textContent=`前往${p}（预计${day}天抵达）`;
+          b.onclick=()=>{
+            this.currentDay+=day;
+            this.currentPort=p;
+            this.showPortChoices=false;
+            this.log(`抵达${p}，当前时间第${this.currentDay}天。`,'route');
+            this.renderAll();
+          };
+          box.appendChild(b);
+        }
+      });
+      el.appendChild(box);
+    }
+  }
+};
+
+// 到港后显示当地商品信息
+const oldRenderAll3=game.renderAll.bind(game);
+game.renderAll=function(){
+  oldRenderAll3();
+  const info=document.querySelector('.header');
+  if(info){
+    const span=document.createElement('span');
+    span.textContent=`当前位置：${this.currentPort}`;
+    info.appendChild(span);
+  }
+};
+
+
+
+// ===== 修正版多港口UI覆盖补丁 =====
+// 修复：上一版仅增加数据，没有接入原流程UI
+
+// 当前港口展示
+function renderMultiPortPanel(){
+ const actions=document.getElementById('actions');
+ if(!actions) return;
+ const old=document.getElementById('multiPortPanel');
+ if(old) old.remove();
+ const panel=document.createElement('div');
+ panel.id='multiPortPanel';
+ panel.className='intel-market';
+ panel.innerHTML=`<h3>当前港口：${game.currentPort||'月港'}</h3>`;
+
+ const port=game.ports[game.currentPort||'月港'];
+ if(port){
+   panel.innerHTML += '<h4>当地商品</h4>';
+   port.goods.forEach(g=>{
+    panel.innerHTML += `<div>${g.name}　价格:${g.price}两　占用:${g.size}</div>`;
+   });
+ }
+
+ panel.innerHTML += '<h4>选择航行目的地</h4>';
+ Object.keys(game.ports).forEach(p=>{
+   if(p!==game.currentPort){
+    const days={月港:10,马尼拉:10,暹罗:15,南洋:25}[p]||10;
+    const btn=document.createElement('button');
+    btn.className='big-btn';
+    btn.textContent=`前往${p}（预计${days}天后抵达）`;
+    btn.onclick=function(){
+      game.currentDay += days;
+      game.currentPort=p;
+      game.location=p;
+      game.log(`航行${days}天后抵达${p}，当前日期第${game.currentDay}天。`,'route');
+      game.renderAll();
+      renderMultiPortPanel();
+    };
+    panel.appendChild(btn);
+   }
+ });
+ actions.appendChild(panel);
+}
+
+const oldRenderAllFixed=game.renderAll.bind(game);
+game.renderAll=function(){
+ oldRenderAllFixed();
+ setTimeout(renderMultiPortPanel,0);
+};
+
+// 商品购买入口：根据当前港口刷新可购买商品
+function refreshPortGoods(){
+ const port=game.ports[game.currentPort||'月港'];
+ if(!port)return;
+ game.goods=port.goods.map(g=>({
+   name:g.name,
+   price:g.price,
+   size:g.size
+ }));
+}
+
+const oldBuyPhase=game.startBuyPhase;
+if(oldBuyPhase){
+ game.startBuyPhase=function(){
+  refreshPortGoods();
+  oldBuyPhase.call(game);
+ }
+}
+
+game.renderAll();
+
+</script>
+
+</body>
+</html>
